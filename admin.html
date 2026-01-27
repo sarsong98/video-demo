@@ -305,12 +305,6 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            color: white;
-            margin-top: 10px;
-        }
-
         .admin-controls {
             position: fixed;
             bottom: 20px;
@@ -354,7 +348,7 @@
         }
 
         .hidden {
-            display: none !important;
+            display: none;
         }
 
         .empty-state {
@@ -605,38 +599,6 @@
             transition: width 0.4s ease;
         }
 
-        .video-preview {
-            width: 100%;
-            max-height: 200px;
-            border-radius: 10px;
-            margin-top: 10px;
-            background: #111;
-            object-fit: contain;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 14px 28px;
-            border-radius: 30px;
-            font-weight: 600;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            animation: fadeInOut 2.5s ease;
-        }
-
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-        }
-
         @media (max-width: 768px) {
             .container {
                 max-width: 100%;
@@ -696,7 +658,6 @@
                 <label for="videoFile" class="file-input-label" id="fileLabel">📁 Choose Video File</label>
             </div>
             <div id="selectedFile" class="selected-file"></div>
-            <video id="videoPreview" class="video-preview hidden" controls></video>
         </div>
         
         <div class="form-group">
@@ -721,7 +682,6 @@
         
         <button class="btn btn-primary" id="uploadBtn" onclick="saveVideo()">💾 Save Video</button>
         <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancel</button>
-        <button class="btn btn-danger hidden" id="deleteBtn" onclick="deleteCurrentVideo()">🗑️ Delete Video</button>
     </div>
 
     <div id="managementPanel" class="management-panel hidden">
@@ -747,96 +707,17 @@
     </div>
 
     <script>
-        // Database using IndexedDB for storing video blobs
-        let db;
         let videos = [];
         let selectedFile = null;
         let editingVideoId = null;
         let analytics = {};
-        let videoBlobs = {}; // In-memory cache for video URLs
 
-        // Initialize IndexedDB
-        function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open('VideoPlatformDB', 1);
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db = request.result;
-                    resolve(db);
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    db = event.target.result;
-                    if (!db.objectStoreNames.contains('videos')) {
-                        db.createObjectStore('videos', { keyPath: 'id' });
-                    }
-                };
-            });
-        }
-
-        // Store video blob in IndexedDB
-        function storeVideoBlob(id, blob) {
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['videos'], 'readwrite');
-                const store = transaction.objectStore('videos');
-                const request = store.put({ id, blob });
-                
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // Get video blob from IndexedDB
-        function getVideoBlob(id) {
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['videos'], 'readonly');
-                const store = transaction.objectStore('videos');
-                const request = store.get(id);
-                
-                request.onsuccess = () => resolve(request.result?.blob);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // Delete video blob from IndexedDB
-        function deleteVideoBlob(id) {
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['videos'], 'readwrite');
-                const store = transaction.objectStore('videos');
-                const request = store.delete(id);
-                
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function initializeData() {
-            try {
-                await initDB();
-            } catch (e) {
-                console.log('IndexedDB not available, using memory only');
-            }
-            
+        function initializeData() {
             const savedVideos = localStorage.getItem('demoVideos');
             const savedAnalytics = localStorage.getItem('demoAnalytics');
             
             videos = savedVideos ? JSON.parse(savedVideos) : [];
             analytics = savedAnalytics ? JSON.parse(savedAnalytics) : {};
-            
-            // Load video blobs for existing videos
-            for (const video of videos) {
-                if (db && video.blobId) {
-                    try {
-                        const blob = await getVideoBlob(video.blobId);
-                        if (blob) {
-                            videoBlobs[video.id] = URL.createObjectURL(blob);
-                        }
-                    } catch (e) {
-                        console.log('Could not load video blob:', video.id);
-                    }
-                }
-            }
             
             renderVideos();
         }
@@ -844,18 +725,6 @@
         function saveToLocalStorage() {
             localStorage.setItem('demoVideos', JSON.stringify(videos));
             localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
-        }
-
-        function showToast(message) {
-            const existing = document.querySelector('.toast');
-            if (existing) existing.remove();
-            
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.remove(), 2500);
         }
 
         function toggleAnalytics() {
@@ -939,29 +808,25 @@
                 return bViews - aViews;
             });
 
-            if (sortedVideos.length === 0) {
-                html += '<p style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">No videos to analyze yet.</p>';
-            } else {
-                sortedVideos.forEach(video => {
-                    const videoAnalytics = analytics[video.id] || { views: 0, watchTime: 0, shares: 0 };
-                    const avgWatchTime = videoAnalytics.views > 0 ? videoAnalytics.watchTime / videoAnalytics.views : 0;
-                    const engagementRate = videoAnalytics.views > 0 ? Math.round(((video.likes + videoAnalytics.shares) / videoAnalytics.views) * 100) : 0;
-                    
-                    html += `
-                        <div class="video-analytics-item">
-                            <div class="video-analytics-title">${video.title}</div>
-                            <div class="video-analytics-stats">
-                                <div class="mini-stat">👁️ Views: <span class="mini-stat-value">${videoAnalytics.views.toLocaleString()}</span></div>
-                                <div class="mini-stat">❤️ Likes: <span class="mini-stat-value">${video.likes.toLocaleString()}</span></div>
-                                <div class="mini-stat">⏱️ Watch: <span class="mini-stat-value">${formatTime(videoAnalytics.watchTime)}</span></div>
-                                <div class="mini-stat">📊 Avg: <span class="mini-stat-value">${formatTime(avgWatchTime)}</span></div>
-                                <div class="mini-stat">📤 Shares: <span class="mini-stat-value">${videoAnalytics.shares.toLocaleString()}</span></div>
-                                <div class="mini-stat">💬 Engagement: <span class="mini-stat-value">${engagementRate}%</span></div>
-                            </div>
+            sortedVideos.forEach(video => {
+                const videoAnalytics = analytics[video.id] || { views: 0, watchTime: 0, shares: 0 };
+                const avgWatchTime = videoAnalytics.views > 0 ? videoAnalytics.watchTime / videoAnalytics.views : 0;
+                const engagementRate = videoAnalytics.views > 0 ? Math.round(((video.likes + videoAnalytics.shares) / videoAnalytics.views) * 100) : 0;
+                
+                html += `
+                    <div class="video-analytics-item">
+                        <div class="video-analytics-title">${video.title}</div>
+                        <div class="video-analytics-stats">
+                            <div class="mini-stat">👁️ Views: <span class="mini-stat-value">${videoAnalytics.views.toLocaleString()}</span></div>
+                            <div class="mini-stat">❤️ Likes: <span class="mini-stat-value">${video.likes.toLocaleString()}</span></div>
+                            <div class="mini-stat">⏱️ Watch: <span class="mini-stat-value">${formatTime(videoAnalytics.watchTime)}</span></div>
+                            <div class="mini-stat">📊 Avg: <span class="mini-stat-value">${formatTime(avgWatchTime)}</span></div>
+                            <div class="mini-stat">📤 Shares: <span class="mini-stat-value">${videoAnalytics.shares.toLocaleString()}</span></div>
+                            <div class="mini-stat">💬 Engagement: <span class="mini-stat-value">${engagementRate}%</span></div>
                         </div>
-                    `;
-                });
-            }
+                    </div>
+                `;
+            });
 
             content.innerHTML = html;
         }
@@ -979,7 +844,6 @@
                 editingVideoId = null;
                 document.getElementById('formTitle').textContent = 'Add Video';
                 document.getElementById('uploadBtn').innerHTML = '💾 Save Video';
-                document.getElementById('deleteBtn').classList.add('hidden');
                 clearForm();
             }
         }
@@ -1015,17 +879,68 @@
         function handleFileSelect() {
             const input = document.getElementById('videoFile');
             const fileDisplay = document.getElementById('selectedFile');
-            const preview = document.getElementById('videoPreview');
             
             if (input.files && input.files[0]) {
                 selectedFile = input.files[0];
-                fileDisplay.textContent = `✓ ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
-                
-                // Show video preview
-                const url = URL.createObjectURL(selectedFile);
-                preview.src = url;
-                preview.classList.remove('hidden');
+                fileDisplay.textContent = `✓ ${selectedFile.name}`;
             }
+        }
+
+        // IndexedDB for storing video blobs (localStorage has size limits)
+        const DB_NAME = 'VideoPlatformDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'videos';
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        async function saveVideoBlob(id, blob) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put({ id, blob });
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getVideoBlob(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(id);
+                
+                request.onsuccess = () => resolve(request.result?.blob || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteVideoBlob(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
         }
 
         async function saveVideo() {
@@ -1034,99 +949,103 @@
             const hashtags = document.getElementById('videoHashtags').value.trim();
 
             if (!title) {
-                showToast('⚠️ Please enter a title');
+                alert('Please enter a video title');
                 return;
             }
 
-            if (!editingVideoId && !selectedFile) {
-                showToast('⚠️ Please select a video file');
+            if (!selectedFile && !editingVideoId) {
+                alert('Please select a video file');
                 return;
             }
 
-            // Show progress
+            const uploadBtn = document.getElementById('uploadBtn');
             const progressBar = document.getElementById('uploadProgress');
             const progressFill = document.getElementById('progressFill');
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Saving...';
             progressBar.classList.remove('hidden');
-            
-            // Simulate upload progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 30;
-                if (progress > 90) progress = 90;
-                progressFill.style.width = progress + '%';
-            }, 100);
 
             try {
+                let videoId;
+                
                 if (editingVideoId) {
-                    // Update existing video
-                    const video = videos.find(v => v.id === editingVideoId);
-                    if (video) {
-                        video.title = title;
-                        video.description = description;
-                        video.hashtags = hashtags;
-                        
-                        // If new file selected, update the video
+                    // Editing existing video
+                    videoId = editingVideoId;
+                    const videoIndex = videos.findIndex(v => v.id === videoId);
+                    
+                    if (videoIndex !== -1) {
+                        videos[videoIndex].title = title;
+                        videos[videoIndex].description = description;
+                        videos[videoIndex].hashtags = hashtags;
+
+                        // If new file selected, update it
                         if (selectedFile) {
-                            const blobId = 'blob_' + Date.now();
-                            if (db) {
-                                await storeVideoBlob(blobId, selectedFile);
+                            progressFill.style.width = '30%';
+                            await saveVideoBlob(videoId, selectedFile);
+                            progressFill.style.width = '70%';
+                            
+                            // Revoke old URL and create new one
+                            if (videos[videoIndex].url) {
+                                URL.revokeObjectURL(videos[videoIndex].url);
                             }
-                            // Revoke old URL
-                            if (videoBlobs[video.id]) {
-                                URL.revokeObjectURL(videoBlobs[video.id]);
-                            }
-                            videoBlobs[video.id] = URL.createObjectURL(selectedFile);
-                            video.blobId = blobId;
-                            video.url = videoBlobs[video.id];
+                            videos[videoIndex].url = URL.createObjectURL(selectedFile);
                         }
                     }
-                    showToast('✅ Video updated successfully!');
                 } else {
-                    // Create new video
-                    const videoId = 'video_' + Date.now();
-                    const blobId = 'blob_' + Date.now();
+                    // Creating new video
+                    videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                     
-                    // Store blob in IndexedDB
-                    if (db) {
-                        await storeVideoBlob(blobId, selectedFile);
-                    }
+                    progressFill.style.width = '30%';
                     
-                    // Create object URL for playback
-                    const videoUrl = URL.createObjectURL(selectedFile);
-                    videoBlobs[videoId] = videoUrl;
+                    // Save blob to IndexedDB
+                    await saveVideoBlob(videoId, selectedFile);
+                    
+                    progressFill.style.width = '70%';
+                    
+                    // Create blob URL for playback
+                    const blobUrl = URL.createObjectURL(selectedFile);
                     
                     const newVideo = {
                         id: videoId,
-                        blobId: blobId,
                         title: title,
                         description: description,
                         hashtags: hashtags,
-                        url: videoUrl,
+                        url: blobUrl,
                         likes: 0,
-                        createdAt: new Date().toISOString()
+                        createdAt: Date.now()
                     };
                     
-                    videos.unshift(newVideo);
+                    videos.push(newVideo);
+                    
+                    // Initialize analytics for new video
                     analytics[videoId] = { views: 0, watchTime: 0, shares: 0 };
-                    showToast('✅ Video uploaded successfully!');
                 }
 
-                clearInterval(progressInterval);
                 progressFill.style.width = '100%';
                 
-                setTimeout(() => {
-                    progressBar.classList.add('hidden');
-                    progressFill.style.width = '0%';
-                }, 500);
-
                 saveToLocalStorage();
                 renderVideos();
-                toggleUpload();
                 
+                setTimeout(() => {
+                    clearForm();
+                    toggleUpload();
+                    progressBar.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '💾 Save Video';
+                    
+                    alert(editingVideoId ? 'Video updated successfully!' : 'Video saved successfully!');
+                    editingVideoId = null;
+                }, 500);
+
             } catch (error) {
-                clearInterval(progressInterval);
+                console.error('Error saving video:', error);
+                alert('Error saving video. Please try again.');
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '💾 Save Video';
                 progressBar.classList.add('hidden');
-                showToast('❌ Error saving video: ' + error.message);
+                progressFill.style.width = '0%';
             }
         }
 
@@ -1136,15 +1055,13 @@
             document.getElementById('videoHashtags').value = '';
             document.getElementById('videoFile').value = '';
             document.getElementById('selectedFile').textContent = '';
-            document.getElementById('videoPreview').classList.add('hidden');
-            document.getElementById('videoPreview').src = '';
             selectedFile = null;
         }
 
         function cancelEdit() {
-            clearForm();
             editingVideoId = null;
-            document.getElementById('uploadSection').classList.add('hidden');
+            clearForm();
+            toggleUpload();
         }
 
         function editVideo(videoId) {
@@ -1153,68 +1070,266 @@
 
             editingVideoId = videoId;
             
-            document.getElementById('formTitle').textContent = 'Edit Video';
-            document.getElementById('uploadBtn').innerHTML = '💾 Update Video';
-            document.getElementById('deleteBtn').classList.remove('hidden');
-            
             document.getElementById('videoTitle').value = video.title;
             document.getElementById('videoDescription').value = video.description || '';
             document.getElementById('videoHashtags').value = video.hashtags || '';
+            document.getElementById('selectedFile').textContent = '(Current video will be kept unless you select a new one)';
             
-            // Show current video preview
-            const preview = document.getElementById('videoPreview');
-            if (videoBlobs[videoId] || video.url) {
-                preview.src = videoBlobs[videoId] || video.url;
-                preview.classList.remove('hidden');
-            }
+            document.getElementById('formTitle').textContent = 'Edit Video';
+            document.getElementById('uploadBtn').innerHTML = '💾 Update Video';
             
-            document.getElementById('selectedFile').textContent = 'Current video loaded (select new file to replace)';
-            
-            // Show upload section, hide management
             document.getElementById('managementPanel').classList.add('hidden');
             document.getElementById('uploadSection').classList.remove('hidden');
         }
 
-        async function deleteVideo(videoId) {
-            if (!confirm('Are you sure you want to delete this video?')) return;
+        function deleteVideo(videoId) {
+            if (!confirm('Are you sure you want to delete this video? This cannot be undone.')) {
+                return;
+            }
+
+            const videoIndex = videos.findIndex(v => v.id === videoId);
+            if (videoIndex !== -1) {
+                // Revoke blob URL
+                if (videos[videoIndex].url) {
+                    URL.revokeObjectURL(videos[videoIndex].url);
+                }
+                
+                // Remove from IndexedDB
+                deleteVideoBlob(videoId).catch(err => console.error('Error deleting blob:', err));
+                
+                // Remove from array
+                videos.splice(videoIndex, 1);
+                
+                // Remove analytics
+                delete analytics[videoId];
+                
+                saveToLocalStorage();
+                renderVideos();
+                updateManagementPanel();
+                
+                alert('Video deleted successfully!');
+            }
+        }
+
+        // ============================================
+        // LAZY LOADING FOR ADMIN
+        // ============================================
+        const PAGE_SIZE = 3;
+        const PRELOAD_THRESHOLD = 1;
+        let loadedVideos = [];
+        let isLoading = false;
+        let loadMoreObserver = null;
+        let videoPlayObserver = null;
+
+        async function loadVideoBlob(video) {
+            if (video.blobLoaded) return video;
             
-            const video = videos.find(v => v.id === videoId);
+            try {
+                const blob = await getVideoBlob(video.id);
+                if (blob) {
+                    video.url = URL.createObjectURL(blob);
+                    video.blobLoaded = true;
+                }
+            } catch (err) {
+                console.error(`Error loading blob for ${video.id}:`, err);
+            }
+            return video;
+        }
+
+        async function loadNextBatch() {
+            if (isLoading) return;
             
-            // Remove from videos array
-            videos = videos.filter(v => v.id !== videoId);
+            const startIndex = loadedVideos.length;
+            const endIndex = Math.min(startIndex + PAGE_SIZE, videos.length);
             
-            // Delete blob from IndexedDB
-            if (db && video && video.blobId) {
-                try {
-                    await deleteVideoBlob(video.blobId);
-                } catch (e) {
-                    console.log('Could not delete blob:', e);
+            if (startIndex >= videos.length) return;
+            
+            isLoading = true;
+            showLoadingIndicator();
+            
+            console.log(`Admin: Loading videos ${startIndex} to ${endIndex - 1}`);
+            
+            const batch = videos.slice(startIndex, endIndex);
+            const loadPromises = batch.map(video => loadVideoBlob(video));
+            await Promise.all(loadPromises);
+            
+            loadedVideos.push(...batch);
+            appendVideosToDOM(batch, startIndex);
+            
+            hideLoadingIndicator();
+            isLoading = false;
+            
+            // Preload next batch
+            preloadNextBatch();
+        }
+
+        async function preloadNextBatch() {
+            const preloadStart = loadedVideos.length;
+            const preloadEnd = Math.min(preloadStart + PAGE_SIZE, videos.length);
+            
+            if (preloadStart >= videos.length) return;
+            
+            const batch = videos.slice(preloadStart, preloadEnd);
+            batch.forEach(video => loadVideoBlob(video));
+        }
+
+        function appendVideosToDOM(videoBatch, startIndex) {
+            const container = document.getElementById('videoContainer');
+            
+            // Remove empty state if present
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.parentElement.remove();
+            
+            // Remove old load trigger
+            const oldTrigger = container.querySelector('.load-trigger');
+            if (oldTrigger) oldTrigger.remove();
+            
+            videoBatch.forEach((video, i) => {
+                const index = startIndex + i;
+                const section = createVideoSection(video, index);
+                container.appendChild(section);
+                
+                if (videoPlayObserver) {
+                    videoPlayObserver.observe(section);
+                }
+            });
+            
+            // Add load trigger if more videos exist
+            if (loadedVideos.length < videos.length) {
+                const trigger = document.createElement('div');
+                trigger.className = 'load-trigger';
+                trigger.style.height = '1px';
+                container.appendChild(trigger);
+                
+                if (loadMoreObserver) {
+                    loadMoreObserver.observe(trigger);
                 }
             }
-            
-            // Revoke object URL
-            if (videoBlobs[videoId]) {
-                URL.revokeObjectURL(videoBlobs[videoId]);
-                delete videoBlobs[videoId];
-            }
-            
-            // Remove analytics
-            delete analytics[videoId];
-            
-            saveToLocalStorage();
-            renderVideos();
-            showToast('🗑️ Video deleted');
         }
 
-        function deleteCurrentVideo() {
-            if (editingVideoId) {
-                deleteVideo(editingVideoId);
-                cancelEdit();
-            }
+        function createVideoSection(video, index) {
+            const section = document.createElement('div');
+            section.className = 'video-section';
+            section.setAttribute('data-video-id', video.id);
+            section.setAttribute('data-index', index);
+            
+            const hashtags = video.hashtags 
+                ? video.hashtags.split(' ')
+                    .filter(tag => tag.startsWith('#'))
+                    .map(tag => `<span class="hashtag">${tag}</span>`)
+                    .join('')
+                : '';
+
+            section.innerHTML = `
+                <video 
+                    id="video-${index}" 
+                    src="${video.url || ''}" 
+                    loop 
+                    playsinline
+                    muted
+                    preload="metadata"
+                ></video>
+                
+                <div class="video-actions">
+                    <button class="video-action-btn edit" onclick="editVideo('${video.id}')">✏️ Edit</button>
+                    <button class="video-action-btn delete" onclick="deleteVideo('${video.id}')">🗑️ Delete</button>
+                </div>
+                
+                <div class="controls">
+                    <div class="video-title">${video.title}</div>
+                    <div class="video-description">${video.description || ''}</div>
+                    ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
+                </div>
+
+                <div class="sidebar">
+                    <div class="action-btn">
+                        <div class="action-icon">❤️</div>
+                        <div class="action-text">${video.likes || 0}</div>
+                    </div>
+                    <div class="action-btn">
+                        <div class="action-icon">📤</div>
+                        <div class="action-text">Share</div>
+                    </div>
+                </div>
+            `;
+            
+            return section;
         }
 
-        function renderVideos() {
+        function showLoadingIndicator() {
+            let indicator = document.getElementById('loadingIndicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'loadingIndicator';
+                indicator.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 24px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    z-index: 100;
+                    backdrop-filter: blur(10px);
+                `;
+                indicator.textContent = '⏳ Loading videos...';
+                document.body.appendChild(indicator);
+            }
+            indicator.style.display = 'block';
+        }
+
+        function hideLoadingIndicator() {
+            const indicator = document.getElementById('loadingIndicator');
+            if (indicator) indicator.style.display = 'none';
+        }
+
+        function setupObservers() {
+            // Load more observer
+            loadMoreObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !isLoading) {
+                        loadNextBatch();
+                    }
+                });
+            }, { 
+                root: document.getElementById('videoContainer'),
+                rootMargin: '200% 0px'
+            });
+
+            // Video play/pause observer
+            videoPlayObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    const index = parseInt(entry.target.getAttribute('data-index'));
+                    
+                    if (video) {
+                        if (entry.isIntersecting) {
+                            video.play().catch(() => {});
+                            
+                            // Preload more when near the end
+                            if (index >= loadedVideos.length - PRELOAD_THRESHOLD - 1) {
+                                loadNextBatch();
+                            }
+                        } else {
+                            video.pause();
+                        }
+                    }
+                });
+            }, { 
+                root: document.getElementById('videoContainer'),
+                threshold: 0.5 
+            });
+        }
+
+        async function renderVideos() {
             const container = document.getElementById('videoContainer');
+            
+            // Reset lazy loading state
+            loadedVideos = [];
+            videos.forEach(v => v.blobLoaded = false);
             
             if (videos.length === 0) {
                 container.innerHTML = `
@@ -1228,72 +1343,17 @@
                 return;
             }
 
-            container.innerHTML = videos.map((video, index) => {
-                const hashtags = video.hashtags 
-                    ? video.hashtags.split(' ')
-                        .filter(tag => tag.startsWith('#'))
-                        .map(tag => `<span class="hashtag">${tag}</span>`)
-                        .join('')
-                    : '';
-
-                const videoUrl = videoBlobs[video.id] || video.url || '';
-
-                return `
-                    <div class="video-section" data-video-id="${video.id}">
-                        <video 
-                            id="video-${index}" 
-                            src="${videoUrl}" 
-                            loop 
-                            playsinline
-                            muted
-                        ></video>
-                        
-                        <div class="video-actions">
-                            <button class="video-action-btn edit" onclick="editVideo('${video.id}')">✏️ Edit</button>
-                            <button class="video-action-btn delete" onclick="deleteVideo('${video.id}')">🗑️ Delete</button>
-                        </div>
-                        
-                        <div class="controls">
-                            <div class="video-title">${video.title}</div>
-                            <div class="video-description">${video.description || ''}</div>
-                            ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
-                        </div>
-
-                        <div class="sidebar">
-                            <div class="action-btn">
-                                <div class="action-icon">❤️</div>
-                                <div class="action-text">${video.likes}</div>
-                            </div>
-                            <div class="action-btn">
-                                <div class="action-icon">📤</div>
-                                <div class="action-text">Share</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            setupVideoObserver();
+            // Clear and setup
+            container.innerHTML = '';
+            setupObservers();
+            
+            // Load first batch
+            await loadNextBatch();
         }
 
+        // Legacy function kept for compatibility
         function setupVideoObserver() {
-            const container = document.getElementById('videoContainer');
-            const videoSections = container.querySelectorAll('.video-section');
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const video = entry.target.querySelector('video');
-                    if (video) {
-                        if (entry.isIntersecting) {
-                            video.play().catch(() => {});
-                        } else {
-                            video.pause();
-                        }
-                    }
-                });
-            }, { threshold: 0.5 });
-
-            videoSections.forEach(section => observer.observe(section));
+            // Now handled by setupObservers()
         }
 
         // Initialize on page load
