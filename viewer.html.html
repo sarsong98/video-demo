@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Platform - DEMO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .demo-watermark {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+            z-index: 102;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(251,191,36,0.3);
+        }
+
+        .search-bar {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 95%;
+        }
+
+        .search-input {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(12px);
+            color: white;
+            font-size: 14px;
+            width: 220px;
+            outline: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .search-input:focus {
+            background: rgba(255,255,255,0.25);
+            border-color: #fbbf24;
+        }
+
+        .search-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #fe2c55 0%, #e91e63 100%);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(254,44,85,0.3);
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(254,44,85,0.4);
+        }
+
+        .clear-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .clear-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .container {
+            height: 100vh;
+            width: 100vw;
+            max-width: 450px;
+            margin: 0 auto;
+            position: relative;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .video-section {
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            scroll-snap-align: start;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 100px;
+            left: 20px;
+            right: 90px;
+            color: white;
+            z-index: 10;
+        }
+
+        .video-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .video-description {
+            font-size: 15px;
+            opacity: 0.95;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+            line-height: 1.4;
+        }
+
+        .video-hashtags {
+            font-size: 15px;
+            font-weight: 700;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        }
+
+        .hashtag {
+            color: #60a5fa;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 6px;
+        }
+
+        .hashtag:hover {
+            color: #93c5fd;
+            text-shadow: 0 0 8px rgba(96,165,250,0.5);
+        }
+
+        .sidebar {
+            position: absolute;
+            right: 16px;
+            bottom: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            z-index: 10;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.85);
+        }
+
+        .action-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover .action-icon {
+            background: rgba(255,255,255,0.35);
+            transform: scale(1.1);
+        }
+
+        .action-text {
+            font-size: 13px;
+            font-weight: 700;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+        }
+
+        .empty-state {
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-state h2 {
+            font-size: 26px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state p {
+            opacity: 0.8;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .liked {
+            animation: likeAnimation 0.4s ease;
+        }
+
+        @keyframes likeAnimation {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        .search-info {
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(96,165,250,0.95);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 12px rgba(96,165,250,0.3);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                max-width: 100%;
+            }
+            
+            .demo-watermark {
+                font-size: 10px;
+                padding: 6px 14px;
+                top: 10px;
+            }
+            
+            .search-bar {
+                top: 45px;
+                gap: 8px;
+            }
+            
+            .search-input {
+                width: 160px;
+                font-size: 12px;
+                padding: 10px 16px;
+            }
+            
+            .search-btn, .clear-btn {
+                font-size: 11px;
+                padding: 10px 16px;
+            }
+
+            .search-info {
+                top: 100px;
+                font-size: 11px;
+                padding: 8px 16px;
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-watermark">📱 VIEWER MODE - DEMO</div>
+    
+    <div class="search-bar">
+        <input 
+            type="text" 
+            id="searchInput" 
+            class="search-input" 
+            placeholder="Search hashtags..."
+            onkeypress="handleSearchKeyPress(event)"
+        >
+        <button class="search-btn" onclick="searchHashtag()">🔍 Search</button>
+        <button class="clear-btn" onclick="clearSearch()">✕ Clear</button>
+    </div>
+
+    <div id="searchInfo" class="search-info hidden"></div>
+
+    <div class="container" id="videoContainer">
+        <div class="video-section">
+            <div class="empty-state">
+                <h2>🎬 No Videos Yet</h2>
+                <p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allVideos = [];
+        let displayedVideos = [];
+        let currentSearchTerm = '';
+        let viewTracking = {};
+        let watchTimeTracking = {};
+        let userLikes = {};
+
+        function loadVideos() {
+            const savedVideos = localStorage.getItem('demoVideos');
+            const savedLikes = localStorage.getItem('demoLikes');
+            
+            allVideos = savedVideos ? JSON.parse(savedVideos) : [];
+            userLikes = savedLikes ? JSON.parse(savedLikes) : {};
+            
+            if (currentSearchTerm) {
+                filterByHashtag(currentSearchTerm);
+            } else {
+                displayedVideos = allVideos;
+                renderVideos();
+            }
+        }
+
+        function handleSearchKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchHashtag();
+            }
+        }
+
+        function searchHashtag() {
+            let searchTerm = document.getElementById('searchInput').value.trim();
+            
+            if (!searchTerm) {
+                clearSearch();
+                return;
+            }
+
+            if (!searchTerm.startsWith('#')) {
+                searchTerm = '#' + searchTerm;
+            }
+
+            currentSearchTerm = searchTerm.toLowerCase();
+            filterByHashtag(currentSearchTerm);
+        }
+
+        function filterByHashtag(hashtag) {
+            displayedVideos = allVideos.filter(video => {
+                if (!video.hashtags) return false;
+                const videoHashtags = video.hashtags.toLowerCase().split(' ');
+                return videoHashtags.some(tag => tag === hashtag);
+            });
+
+            const searchInfo = document.getElementById('searchInfo');
+            if (displayedVideos.length > 0) {
+                searchInfo.textContent = `Found ${displayedVideos.length} video${displayedVideos.length !== 1 ? 's' : ''} with ${hashtag}`;
+                searchInfo.classList.remove('hidden');
+            } else {
+                searchInfo.textContent = `No videos found with ${hashtag}`;
+                searchInfo.classList.remove('hidden');
+            }
+
+            renderVideos();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            currentSearchTerm = '';
+            displayedVideos = allVideos;
+            document.getElementById('searchInfo').classList.add('hidden');
+            renderVideos();
+        }
+
+        function clickHashtag(hashtag) {
+            document.getElementById('searchInput').value = hashtag;
+            currentSearchTerm = hashtag.toLowerCase();
+            filterByHashtag(currentSearchTerm);
+            
+            document.getElementById('videoContainer').scrollTo(0, 0);
+        }
+
+        function trackView(videoId) {
+            if (viewTracking[videoId]) return;
+            viewTracking[videoId] = true;
+
+            let analytics = JSON.parse(localStorage.getItem('demoAnalytics') || '{}');
+            if (!analytics[videoId]) {
+                analytics[videoId] = { views: 0, watchTime: 0, shares: 0 };
+            }
+            analytics[videoId].views++;
+            localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
+        }
+
+        function startWatchTimeTracking(videoId) {
+            if (watchTimeTracking[videoId]) {
+                watchTimeTracking[videoId].start = Date.now();
+                return;
+            }
+
+            watchTimeTracking[videoId] = {
+                start: Date.now(),
+                totalTime: 0
+            };
+        }
+
+        function stopWatchTimeTracking(videoId) {
+            if (!watchTimeTracking[videoId]) return;
+
+            const elapsed = (Date.now() - watchTimeTracking[videoId].start) / 1000;
+            watchTimeTracking[videoId].totalTime += elapsed;
+
+            let analytics = JSON.parse(localStorage.getItem('demoAnalytics') || '{}');
+            if (!analytics[videoId]) {
+                analytics[videoId] = { views: 0, watchTime: 0, shares: 0 };
+            }
+            analytics[videoId].watchTime += elapsed;
+            localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
+        }
+
+        function trackShare(videoId) {
+            let analytics = JSON.parse(localStorage.getItem('demoAnalytics') || '{}');
+            if (!analytics[videoId]) {
+                analytics[videoId] = { views: 0, watchTime: 0, shares: 0 };
+            }
+            analytics[videoId].shares++;
+            localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
+        }
+
+        function renderVideos() {
+            const container = document.getElementById('videoContainer');
+            
+            if (displayedVideos.length === 0) {
+                const message = currentSearchTerm 
+                    ? `<h2>🔍 No Results</h2><p>No videos match "${currentSearchTerm}"</p><p style="margin-top: 12px; opacity: 0.7;">Try a different hashtag or clear the search</p>`
+                    : `<h2>🎬 No Videos Yet</h2><p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>`;
+                
+                container.innerHTML = `
+                    <div class="video-section">
+                        <div class="empty-state">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = displayedVideos.map((video, index) => {
+                const hashtags = video.hashtags 
+                    ? video.hashtags.split(' ')
+                        .filter(tag => tag.startsWith('#'))
+                        .map(tag => `<span class="hashtag" onclick="clickHashtag('${tag}')">${tag}</span>`)
+                        .join('')
+                    : '';
+
+                return `
+                    <div class="video-section" data-video-id="${video.id}">
+                        <video 
+                            id="video-${index}" 
+                            src="${video.url}" 
+                            loop 
+                            playsinline
+                            muted
+                        ></video>
+                        
+                        <div class="controls">
+                            <div class="video-title">${video.title}</div>
+                            <div class="video-description">${video.description}</div>
+                            ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
+                        </div>
+
+                        <div class="sidebar">
+                            <div class="action-btn" onclick="toggleLike(${index}, '${video.id}')">
+                                <div class="action-icon" id="like-icon-${index}">${userLikes[video.id] ? '❤️' : '🤍'}</div>
+                                <div class="action-text" id="like-count-${index}">${video.likes}</div>
+                            </div>
+                            <div class="action-btn" onclick="shareVideo(${index}, '${video.id}')">
+                                <div class="action-icon">📤</div>
+                                <div class="action-text">Share</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            setupVideoObserver();
+        }
+
+        function setupVideoObserver() {
+            const container = document.getElementById('videoContainer');
+            const videoSections = container.querySelectorAll('.video-section');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    const videoId = entry.target.getAttribute('data-video-id');
+                    
+                    if (video && videoId) {
+                        if (entry.isIntersecting) {
+                            video.play();
+                            trackView(videoId);
+                            startWatchTimeTracking(videoId);
+                        } else {
+                            video.pause();
+                            stopWatchTimeTracking(videoId);
+                        }
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            videoSections.forEach(section => observer.observe(section));
+        }
+
+        function toggleLike(index, videoId) {
+            const likeIcon = document.getElementById(`like-icon-${index}`);
+            const likeCount = document.getElementById(`like-count-${index}`);
+            const video = displayedVideos[index];
+            
+            userLikes[videoId] = !userLikes[videoId];
+            localStorage.setItem('demoLikes', JSON.stringify(userLikes));
+            
+            video.likes = userLikes[videoId] ? (video.likes + 1) : Math.max(0, video.likes - 1);
+            
+            const videoInAll = allVideos.find(v => v.id == videoId);
+            if (videoInAll) {
+                videoInAll.likes = video.likes;
+                localStorage.setItem('demoVideos', JSON.stringify(allVideos));
+            }
+            
+            likeIcon.textContent = userLikes[videoId] ? '❤️' : '🤍';
+            likeIcon.classList.add('liked');
+            setTimeout(() => likeIcon.classList.remove('liked'), 400);
+            
+            likeCount.textContent = video.likes;
+        }
+
+        function shareVideo(index, videoId) {
+            const video = displayedVideos[index];
+            const shareText = video.hashtags 
+                ? `${video.title}\n\n${video.hashtags}`
+                : video.title;
+
+            trackShare(videoId);
+
+            if (navigator.share) {
+                navigator.share({
+                    title: video.title,
+                    text: shareText,
+                    url: window.location.href
+                }).catch(err => console.log('Error sharing:', err));
+            } else {
+                alert(`Link copied! Share: ${video.title}\n\nURL: ${window.location.href}`);
+            }
+        }
+
+        // Auto-refresh to sync with admin changes
+        setInterval(() => {
+            loadVideos();
+        }, 3000);
+
+        loadVideos();
+    </script>
+</body>
+</html>

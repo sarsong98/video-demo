@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Platform - Admin DEMO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .demo-watermark {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-weight: 700;
+            font-size: 13px;
+            z-index: 102;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 12px rgba(251,191,36,0.4);
+        }
+
+        .container {
+            height: 100vh;
+            width: 100vw;
+            max-width: 450px;
+            margin: 0 auto;
+            position: relative;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .video-section {
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            scroll-snap-align: start;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 100px;
+            left: 20px;
+            right: 90px;
+            color: white;
+            z-index: 10;
+        }
+
+        .video-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .video-description {
+            font-size: 15px;
+            opacity: 0.95;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+            line-height: 1.4;
+        }
+
+        .video-hashtags {
+            font-size: 15px;
+            font-weight: 700;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        }
+
+        .hashtag {
+            color: #60a5fa;
+            margin-right: 6px;
+        }
+
+        .sidebar {
+            position: absolute;
+            right: 16px;
+            bottom: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            z-index: 10;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.85);
+        }
+
+        .action-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+
+        .action-text {
+            font-size: 13px;
+            font-weight: 700;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+        }
+
+        .upload-section {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(0,0,0,0.96);
+            padding: 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            width: 90%;
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 2px solid #fbbf24;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+
+        .upload-section h2 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        .demo-badge {
+            background: rgba(251,191,36,0.2);
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(251,191,36,0.4);
+            color: #fbbf24;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .demo-badge strong {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: white;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #fbbf24;
+            background: rgba(255,255,255,0.12);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .hashtag-help {
+            font-size: 12px;
+            color: #60a5fa;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 14px;
+            background: linear-gradient(135deg, #fe2c55 0%, #e91e63 100%);
+            color: white;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s;
+            font-size: 15px;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(254,44,85,0.4);
+        }
+
+        .selected-file {
+            color: #4ade80;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #fe2c55 0%, #e91e63 100%);
+            color: white;
+            margin-top: 12px;
+            box-shadow: 0 4px 12px rgba(254,44,85,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(254,44,85,0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            margin-top: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .admin-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90%;
+        }
+
+        .admin-btn {
+            background: linear-gradient(135deg, #fe2c55 0%, #e91e63 100%);
+            color: white;
+            border: none;
+            padding: 14px 26px;
+            border-radius: 28px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(254,44,85,0.4);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .admin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(254,44,85,0.5);
+        }
+
+        .admin-btn.secondary {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .admin-btn.analytics {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .empty-state {
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-state h2 {
+            font-size: 26px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state p {
+            opacity: 0.8;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .video-actions {
+            position: absolute;
+            top: 80px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .video-action-btn {
+            background: rgba(0,0,0,0.75);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .video-action-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.05);
+        }
+
+        .video-action-btn.delete:hover {
+            background: rgba(220,38,38,0.9);
+            border-color: #dc2626;
+        }
+
+        .video-action-btn.edit {
+            background: rgba(59,130,246,0.75);
+            border-color: rgba(59,130,246,0.4);
+        }
+
+        .video-action-btn.edit:hover {
+            background: rgba(59,130,246,0.95);
+        }
+
+        .management-panel {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(0,0,0,0.96);
+            padding: 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            width: 90%;
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 2px solid #fbbf24;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+
+        .management-panel h2 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        .video-list-item {
+            background: rgba(255,255,255,0.08);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-list-item:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(4px);
+        }
+
+        .video-list-title {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 6px;
+            font-size: 16px;
+        }
+
+        .video-list-meta {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .video-list-hashtags {
+            font-size: 13px;
+            color: #60a5fa;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .analytics-panel {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(0,0,0,0.96);
+            padding: 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 2px solid #3b82f6;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .analytics-header h2 {
+            color: white;
+            font-size: 24px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: white;
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .video-analytics-item {
+            background: rgba(255,255,255,0.05);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-analytics-title {
+            color: white;
+            font-weight: 700;
+            font-size: 17px;
+            margin-bottom: 14px;
+        }
+
+        .video-analytics-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .mini-stat {
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .mini-stat-value {
+            color: #60a5fa;
+            font-weight: 700;
+        }
+
+        .section-title {
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 32px 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #fe2c55 0%, #e91e63 100%);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                max-width: 100%;
+            }
+            
+            .demo-watermark {
+                font-size: 11px;
+                padding: 8px 16px;
+            }
+
+            .admin-controls {
+                bottom: 10px;
+                gap: 8px;
+            }
+            
+            .admin-btn {
+                font-size: 12px;
+                padding: 12px 20px;
+            }
+            
+            .upload-section,
+            .management-panel,
+            .analytics-panel {
+                top: 70px;
+                width: 95%;
+                max-height: 80vh;
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-watermark">👑 ADMIN MODE - DEMO</div>
+    
+    <div class="admin-controls">
+        <button class="admin-btn" onclick="toggleUpload()">+ Add Video</button>
+        <button class="admin-btn secondary" onclick="toggleManagement()">📋 Manage</button>
+        <button class="admin-btn analytics" onclick="toggleAnalytics()">📊 Analytics</button>
+    </div>
+
+    <div id="uploadSection" class="upload-section hidden">
+        <h2 id="formTitle">Add Video</h2>
+        
+        <div class="demo-badge">
+            <strong>💡 DEMO MODE</strong>
+            Upload any video file from your device. In production, this connects to cloud storage (Google Drive, Vimeo, etc.)
+        </div>
+
+        <div class="form-group">
+            <label>Video File *</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="videoFile" accept="video/*" onchange="handleFileSelect()">
+                <label for="videoFile" class="file-input-label" id="fileLabel">📁 Choose Video File</label>
+            </div>
+            <div id="selectedFile" class="selected-file"></div>
+        </div>
+        
+        <div class="form-group">
+            <label>Title *</label>
+            <input type="text" id="videoTitle" placeholder="Enter video title">
+        </div>
+        
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="videoDescription" placeholder="Enter description"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Hashtags</label>
+            <input type="text" id="videoHashtags" placeholder="#travel #food #lifestyle">
+            <div class="hashtag-help">Separate with spaces (e.g., #travel #food)</div>
+        </div>
+        
+        <div id="uploadProgress" class="progress-bar hidden">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+        
+        <button class="btn btn-primary" id="uploadBtn" onclick="saveVideo()">💾 Save Video</button>
+        <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancel</button>
+    </div>
+
+    <div id="managementPanel" class="management-panel hidden">
+        <h2>📋 Manage Videos</h2>
+        <div id="videoList"></div>
+    </div>
+
+    <div id="analyticsPanel" class="analytics-panel hidden">
+        <div class="analytics-header">
+            <h2>📊 Analytics</h2>
+            <button class="btn-secondary" onclick="toggleAnalytics()" style="padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; background: rgba(255,255,255,0.15); color: white; font-weight: 700;">✕ Close</button>
+        </div>
+        <div id="analyticsContent"></div>
+    </div>
+
+    <div class="container" id="videoContainer">
+        <div class="video-section">
+            <div class="empty-state">
+                <h2>🎬 No Videos Yet</h2>
+                <p>Click "+ Add Video" to upload your first video and see your platform come to life!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let videos = [];
+        let selectedFile = null;
+        let editingVideoId = null;
+        let analytics = {};
+
+        function initializeData() {
+            const savedVideos = localStorage.getItem('demoVideos');
+            const savedAnalytics = localStorage.getItem('demoAnalytics');
+            
+            videos = savedVideos ? JSON.parse(savedVideos) : [];
+            analytics = savedAnalytics ? JSON.parse(savedAnalytics) : {};
+            
+            renderVideos();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('demoVideos', JSON.stringify(videos));
+            localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
+        }
+
+        function toggleAnalytics() {
+            const panel = document.getElementById('analyticsPanel');
+            const uploadSection = document.getElementById('uploadSection');
+            const mgmtPanel = document.getElementById('managementPanel');
+            
+            uploadSection.classList.add('hidden');
+            mgmtPanel.classList.add('hidden');
+            panel.classList.toggle('hidden');
+            
+            if (!panel.classList.contains('hidden')) {
+                loadAnalytics();
+            }
+        }
+
+        function loadAnalytics() {
+            const content = document.getElementById('analyticsContent');
+
+            let totalViews = 0;
+            let totalLikes = 0;
+            let totalWatchTime = 0;
+            let totalShares = 0;
+
+            videos.forEach(video => {
+                const videoAnalytics = analytics[video.id] || { views: 0, watchTime: 0, shares: 0 };
+                totalViews += videoAnalytics.views || 0;
+                totalLikes += video.likes || 0;
+                totalWatchTime += videoAnalytics.watchTime || 0;
+                totalShares += videoAnalytics.shares || 0;
+            });
+
+            const formatTime = (seconds) => {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                if (hours > 0) return `${hours}h ${minutes}m`;
+                if (minutes > 0) return `${minutes}m`;
+                return `${Math.floor(seconds)}s`;
+            };
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👁️</div>
+                        <div class="stat-label">Total Views</div>
+                        <div class="stat-value">${totalViews.toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❤️</div>
+                        <div class="stat-label">Total Likes</div>
+                        <div class="stat-value">${totalLikes.toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-label">Watch Time</div>
+                        <div class="stat-value">${formatTime(totalWatchTime)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-label">Total Shares</div>
+                        <div class="stat-value">${totalShares.toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎥</div>
+                        <div class="stat-label">Total Videos</div>
+                        <div class="stat-value">${videos.length}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">Avg Views</div>
+                        <div class="stat-value">${videos.length > 0 ? Math.round(totalViews / videos.length) : 0}</div>
+                    </div>
+                </div>
+
+                <div class="section-title">Video Performance</div>
+            `;
+
+            const sortedVideos = [...videos].sort((a, b) => {
+                const aViews = (analytics[a.id] || {}).views || 0;
+                const bViews = (analytics[b.id] || {}).views || 0;
+                return bViews - aViews;
+            });
+
+            sortedVideos.forEach(video => {
+                const videoAnalytics = analytics[video.id] || { views: 0, watchTime: 0, shares: 0 };
+                const avgWatchTime = videoAnalytics.views > 0 ? videoAnalytics.watchTime / videoAnalytics.views : 0;
+                const engagementRate = videoAnalytics.views > 0 ? Math.round(((video.likes + videoAnalytics.shares) / videoAnalytics.views) * 100) : 0;
+                
+                html += `
+                    <div class="video-analytics-item">
+                        <div class="video-analytics-title">${video.title}</div>
+                        <div class="video-analytics-stats">
+                            <div class="mini-stat">👁️ Views: <span class="mini-stat-value">${videoAnalytics.views.toLocaleString()}</span></div>
+                            <div class="mini-stat">❤️ Likes: <span class="mini-stat-value">${video.likes.toLocaleString()}</span></div>
+                            <div class="mini-stat">⏱️ Watch: <span class="mini-stat-value">${formatTime(videoAnalytics.watchTime)}</span></div>
+                            <div class="mini-stat">📊 Avg: <span class="mini-stat-value">${formatTime(avgWatchTime)}</span></div>
+                            <div class="mini-stat">📤 Shares: <span class="mini-stat-value">${videoAnalytics.shares.toLocaleString()}</span></div>
+                            <div class="mini-stat">💬 Engagement: <span class="mini-stat-value">${engagementRate}%</span></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+        }
+
+        function toggleUpload() {
+            const section = document.getElementById('uploadSection');
+            const mgmtPanel = document.getElementById('managementPanel');
+            const analyticsPanel = document.getElementById('analyticsPanel');
+            
+            mgmtPanel.classList.add('hidden');
+            analyticsPanel.classList.add('hidden');
+            section.classList.toggle('hidden');
+            
+            if (!section.classList.contains('hidden')) {
+                editingVideoId = null;
+                document.getElementById('formTitle').textContent = 'Add Video';
+                document.getElementById('uploadBtn').innerHTML = '💾 Save Video';
+                clearForm();
+            }
+        }
+
+        function toggleManagement() {
+            const panel = document.getElementById('managementPanel');
+            const uploadSection = document.getElementById('uploadSection');
+            const analyticsPanel = document.getElementById('analyticsPanel');
+            
+            uploadSection.classList.add('hidden');
+            analyticsPanel.classList.add('hidden');
+            panel.classList.toggle('hidden');
+            updateManagementPanel();
+        }
+
+        function updateManagementPanel() {
+            const listEl = document.getElementById('videoList');
+            
+            if (videos.length === 0) {
+                listEl.innerHTML = '<p style="color: rgba(255,255,255,0.7); text-align: center; padding: 20px;">No videos yet. Upload your first video to get started!</p>';
+                return;
+            }
+
+            listEl.innerHTML = videos.map(video => `
+                <div class="video-list-item" onclick="editVideo('${video.id}')">
+                    <div class="video-list-title">${video.title}</div>
+                    <div class="video-list-meta">❤️ ${video.likes} likes</div>
+                    ${video.hashtags ? `<div class="video-list-hashtags">${video.hashtags}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function handleFileSelect() {
+            const input = document.getElementById('videoFile');
+            const fileDisplay = document.getElementById('selectedFile');
+            
+            if (input.files && input.files[0]) {
+                selectedFile = input.files[0];
+                fileDisplay.textContent = `✓ ${selectedFile.name}`;
+            }
+        }
