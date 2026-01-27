@@ -340,350 +340,27 @@
     </div>
 
     <script>
-        // ============================================
-        // LAZY LOADING CONFIGURATION
-        // ============================================
-        const PAGE_SIZE = 3;  // Load 3 videos at a time
-        const PRELOAD_THRESHOLD = 1;  // Start loading next batch when 1 video away from end
-        
-        let allVideos = [];      // All video metadata (from localStorage)
-        let displayedVideos = []; // Filtered videos to show
-        let loadedVideos = [];    // Videos with blobs loaded (ready to play)
-        let renderedCount = 0;    // How many videos are in the DOM
-        let isLoading = false;    // Prevent duplicate loading
+        let allVideos = [];
+        let displayedVideos = [];
         let currentSearchTerm = '';
         let viewTracking = {};
         let watchTimeTracking = {};
         let userLikes = {};
-        let loadMoreObserver = null;
-        let videoPlayObserver = null;
 
-        // ============================================
-        // INDEXEDDB SETUP
-        // ============================================
-        const DB_NAME = 'VideoPlatformDB';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'videos';
-
-        function openDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => resolve(request.result);
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                    }
-                };
-            });
-        }
-
-        async function getVideoBlob(id) {
-            try {
-                const db = await openDB();
-                return new Promise((resolve, reject) => {
-                    const transaction = db.transaction([STORE_NAME], 'readonly');
-                    const store = transaction.objectStore(STORE_NAME);
-                    const request = store.get(id);
-                    request.onsuccess = () => resolve(request.result?.blob || null);
-                    request.onerror = () => reject(request.error);
-                });
-            } catch (err) {
-                console.error('Error accessing IndexedDB:', err);
-                return null;
-            }
-        }
-
-        // ============================================
-        // LAZY LOADING CORE FUNCTIONS
-        // ============================================
-        
-        // Load a single video's blob and create URL
-        async function loadVideoBlob(video) {
-            if (video.blobLoaded) return video; // Already loaded
-            
-            try {
-                const blob = await getVideoBlob(video.id);
-                if (blob) {
-                    video.url = URL.createObjectURL(blob);
-                    video.blobLoaded = true;
-                }
-            } catch (err) {
-                console.error(`Error loading blob for ${video.id}:`, err);
-            }
-            return video;
-        }
-
-        // Load next batch of videos
-        async function loadNextBatch() {
-            if (isLoading) return;
-            
-            const startIndex = loadedVideos.length;
-            const endIndex = Math.min(startIndex + PAGE_SIZE, displayedVideos.length);
-            
-            // Nothing more to load
-            if (startIndex >= displayedVideos.length) return;
-            
-            isLoading = true;
-            showLoadingIndicator();
-            
-            console.log(`Loading videos ${startIndex} to ${endIndex - 1}`);
-            
-            // Load blobs for next batch
-            const batch = displayedVideos.slice(startIndex, endIndex);
-            const loadPromises = batch.map(video => loadVideoBlob(video));
-            await Promise.all(loadPromises);
-            
-            // Add to loaded videos
-            loadedVideos.push(...batch);
-            
-            // Render the new videos
-            appendVideosToDOM(batch, startIndex);
-            
-            hideLoadingIndicator();
-            isLoading = false;
-            
-            // Pre-load next batch in background (for instant availability)
-            preloadNextBatch();
-        }
-
-        // Pre-load blobs for upcoming videos (doesn't render them yet)
-        async function preloadNextBatch() {
-            const preloadStart = loadedVideos.length;
-            const preloadEnd = Math.min(preloadStart + PAGE_SIZE, displayedVideos.length);
-            
-            if (preloadStart >= displayedVideos.length) return;
-            
-            console.log(`Pre-loading videos ${preloadStart} to ${preloadEnd - 1}`);
-            
-            const batch = displayedVideos.slice(preloadStart, preloadEnd);
-            // Load in background without blocking
-            batch.forEach(video => loadVideoBlob(video));
-        }
-
-        // Append videos to DOM (instead of re-rendering everything)
-        function appendVideosToDOM(videos, startIndex) {
-            const container = document.getElementById('videoContainer');
-            
-            // Remove empty state if present
-            const emptyState = container.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.parentElement.remove();
-            }
-            
-            // Remove old load trigger if exists
-            const oldTrigger = container.querySelector('.load-trigger');
-            if (oldTrigger) oldTrigger.remove();
-            
-            videos.forEach((video, i) => {
-                const index = startIndex + i;
-                const section = createVideoSection(video, index);
-                container.appendChild(section);
-                
-                // Observe for play/pause
-                if (videoPlayObserver) {
-                    videoPlayObserver.observe(section);
-                }
-            });
-            
-            // Add load trigger at the end
-            if (loadedVideos.length < displayedVideos.length) {
-                const trigger = document.createElement('div');
-                trigger.className = 'load-trigger';
-                trigger.style.height = '1px';
-                container.appendChild(trigger);
-                
-                if (loadMoreObserver) {
-                    loadMoreObserver.observe(trigger);
-                }
-            }
-            
-            renderedCount = loadedVideos.length;
-        }
-
-        // Create a single video section element
-        function createVideoSection(video, index) {
-            const section = document.createElement('div');
-            section.className = 'video-section';
-            section.setAttribute('data-video-id', video.id);
-            section.setAttribute('data-index', index);
-            
-            const hashtags = video.hashtags 
-                ? video.hashtags.split(' ')
-                    .filter(tag => tag.startsWith('#'))
-                    .map(tag => `<span class="hashtag" onclick="clickHashtag('${tag}')">${tag}</span>`)
-                    .join('')
-                : '';
-
-            section.innerHTML = `
-                <video 
-                    id="video-${index}" 
-                    src="${video.url || ''}" 
-                    loop 
-                    playsinline
-                    muted
-                    preload="metadata"
-                ></video>
-                
-                <div class="controls">
-                    <div class="video-title">${video.title}</div>
-                    <div class="video-description">${video.description || ''}</div>
-                    ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
-                </div>
-
-                <div class="sidebar">
-                    <div class="action-btn" onclick="toggleLike(${index}, '${video.id}')">
-                        <div class="action-icon" id="like-icon-${index}">${userLikes[video.id] ? '❤️' : '🤍'}</div>
-                        <div class="action-text" id="like-count-${index}">${video.likes || 0}</div>
-                    </div>
-                    <div class="action-btn" onclick="shareVideo(${index}, '${video.id}')">
-                        <div class="action-icon">📤</div>
-                        <div class="action-text">Share</div>
-                    </div>
-                </div>
-            `;
-            
-            return section;
-        }
-
-        function showLoadingIndicator() {
-            let indicator = document.getElementById('loadingIndicator');
-            if (!indicator) {
-                indicator = document.createElement('div');
-                indicator.id = 'loadingIndicator';
-                indicator.style.cssText = `
-                    position: fixed;
-                    bottom: 80px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: rgba(0,0,0,0.8);
-                    color: white;
-                    padding: 12px 24px;
-                    border-radius: 24px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    z-index: 100;
-                    backdrop-filter: blur(10px);
-                `;
-                indicator.textContent = '⏳ Loading videos...';
-                document.body.appendChild(indicator);
-            }
-            indicator.style.display = 'block';
-        }
-
-        function hideLoadingIndicator() {
-            const indicator = document.getElementById('loadingIndicator');
-            if (indicator) {
-                indicator.style.display = 'none';
-            }
-        }
-
-        // ============================================
-        // INTERSECTION OBSERVERS
-        // ============================================
-        
-        function setupObservers() {
-            // Observer for loading more videos when scrolling near the end
-            loadMoreObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && !isLoading) {
-                        console.log('Load trigger visible, loading more...');
-                        loadNextBatch();
-                    }
-                });
-            }, { 
-                root: document.getElementById('videoContainer'),
-                rootMargin: '200% 0px' // Load when 2 screens away
-            });
-
-            // Observer for playing/pausing videos and preloading
-            videoPlayObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const video = entry.target.querySelector('video');
-                    const videoId = entry.target.getAttribute('data-video-id');
-                    const index = parseInt(entry.target.getAttribute('data-index'));
-                    
-                    if (video && videoId) {
-                        if (entry.isIntersecting) {
-                            video.play().catch(() => {});
-                            trackView(videoId);
-                            startWatchTimeTracking(videoId);
-                            
-                            // Check if we need to load more (PRELOAD_THRESHOLD from end)
-                            if (index >= loadedVideos.length - PRELOAD_THRESHOLD - 1) {
-                                loadNextBatch();
-                            }
-                        } else {
-                            video.pause();
-                            stopWatchTimeTracking(videoId);
-                        }
-                    }
-                });
-            }, { 
-                root: document.getElementById('videoContainer'),
-                threshold: 0.5 
-            });
-        }
-
-        // ============================================
-        // MAIN LOAD FUNCTION
-        // ============================================
-        
-        async function loadVideos() {
-            // Reset state
-            loadedVideos = [];
-            renderedCount = 0;
-            
-            // Load metadata only (fast!)
+        function loadVideos() {
             const savedVideos = localStorage.getItem('demoVideos');
             const savedLikes = localStorage.getItem('demoLikes');
             
             allVideos = savedVideos ? JSON.parse(savedVideos) : [];
             userLikes = savedLikes ? JSON.parse(savedLikes) : {};
             
-            // Mark all as not loaded
-            allVideos.forEach(v => v.blobLoaded = false);
-            
             if (currentSearchTerm) {
                 filterByHashtag(currentSearchTerm);
             } else {
-                displayedVideos = [...allVideos];
-                await initializeVideos();
+                displayedVideos = allVideos;
+                renderVideos();
             }
         }
-
-        async function initializeVideos() {
-            const container = document.getElementById('videoContainer');
-            
-            if (displayedVideos.length === 0) {
-                const message = currentSearchTerm 
-                    ? `<h2>🔍 No Results</h2><p>No videos match "${currentSearchTerm}"</p><p style="margin-top: 12px; opacity: 0.7;">Try a different hashtag or clear the search</p>`
-                    : `<h2>🎬 No Videos Yet</h2><p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>`;
-                
-                container.innerHTML = `
-                    <div class="video-section">
-                        <div class="empty-state">
-                            ${message}
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Clear container
-            container.innerHTML = '';
-            
-            // Setup observers
-            setupObservers();
-            
-            // Load first batch
-            await loadNextBatch();
-        }
-
-        // ============================================
-        // SEARCH & FILTER FUNCTIONS
-        // ============================================
 
         function handleSearchKeyPress(event) {
             if (event.key === 'Enter') {
@@ -707,19 +384,12 @@
             filterByHashtag(currentSearchTerm);
         }
 
-        async function filterByHashtag(hashtag) {
-            // Reset loaded state
-            loadedVideos = [];
-            renderedCount = 0;
-            
+        function filterByHashtag(hashtag) {
             displayedVideos = allVideos.filter(video => {
                 if (!video.hashtags) return false;
                 const videoHashtags = video.hashtags.toLowerCase().split(' ');
                 return videoHashtags.some(tag => tag === hashtag);
             });
-            
-            // Mark filtered videos as not loaded
-            displayedVideos.forEach(v => v.blobLoaded = false);
 
             const searchInfo = document.getElementById('searchInfo');
             if (displayedVideos.length > 0) {
@@ -730,30 +400,24 @@
                 searchInfo.classList.remove('hidden');
             }
 
-            await initializeVideos();
+            renderVideos();
         }
 
-        async function clearSearch() {
+        function clearSearch() {
             document.getElementById('searchInput').value = '';
             currentSearchTerm = '';
-            loadedVideos = [];
-            renderedCount = 0;
-            displayedVideos = [...allVideos];
-            displayedVideos.forEach(v => v.blobLoaded = false);
+            displayedVideos = allVideos;
             document.getElementById('searchInfo').classList.add('hidden');
-            await initializeVideos();
+            renderVideos();
         }
 
         function clickHashtag(hashtag) {
             document.getElementById('searchInput').value = hashtag;
             currentSearchTerm = hashtag.toLowerCase();
             filterByHashtag(currentSearchTerm);
+            
             document.getElementById('videoContainer').scrollTo(0, 0);
         }
-
-        // ============================================
-        // ANALYTICS TRACKING
-        // ============================================
 
         function trackView(videoId) {
             if (viewTracking[videoId]) return;
@@ -802,7 +466,65 @@
             localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
         }
 
-        // Legacy function for compatibility (not used in lazy loading)
+        function renderVideos() {
+            const container = document.getElementById('videoContainer');
+            
+            if (displayedVideos.length === 0) {
+                const message = currentSearchTerm 
+                    ? `<h2>🔍 No Results</h2><p>No videos match "${currentSearchTerm}"</p><p style="margin-top: 12px; opacity: 0.7;">Try a different hashtag or clear the search</p>`
+                    : `<h2>🎬 No Videos Yet</h2><p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>`;
+                
+                container.innerHTML = `
+                    <div class="video-section">
+                        <div class="empty-state">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = displayedVideos.map((video, index) => {
+                const hashtags = video.hashtags 
+                    ? video.hashtags.split(' ')
+                        .filter(tag => tag.startsWith('#'))
+                        .map(tag => `<span class="hashtag" onclick="clickHashtag('${tag}')">${tag}</span>`)
+                        .join('')
+                    : '';
+
+                return `
+                    <div class="video-section" data-video-id="${video.id}">
+                        <video 
+                            id="video-${index}" 
+                            src="${video.url}" 
+                            loop 
+                            playsinline
+                            muted
+                        ></video>
+                        
+                        <div class="controls">
+                            <div class="video-title">${video.title}</div>
+                            <div class="video-description">${video.description}</div>
+                            ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
+                        </div>
+
+                        <div class="sidebar">
+                            <div class="action-btn" onclick="toggleLike(${index}, '${video.id}')">
+                                <div class="action-icon" id="like-icon-${index}">${userLikes[video.id] ? '❤️' : '🤍'}</div>
+                                <div class="action-text" id="like-count-${index}">${video.likes}</div>
+                            </div>
+                            <div class="action-btn" onclick="shareVideo(${index}, '${video.id}')">
+                                <div class="action-icon">📤</div>
+                                <div class="action-text">Share</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            setupVideoObserver();
+        }
+
         function setupVideoObserver() {
             const container = document.getElementById('videoContainer');
             const videoSections = container.querySelectorAll('.video-section');
@@ -831,14 +553,12 @@
         function toggleLike(index, videoId) {
             const likeIcon = document.getElementById(`like-icon-${index}`);
             const likeCount = document.getElementById(`like-count-${index}`);
-            const video = loadedVideos[index];
-            
-            if (!video) return;
+            const video = displayedVideos[index];
             
             userLikes[videoId] = !userLikes[videoId];
             localStorage.setItem('demoLikes', JSON.stringify(userLikes));
             
-            video.likes = userLikes[videoId] ? ((video.likes || 0) + 1) : Math.max(0, (video.likes || 0) - 1);
+            video.likes = userLikes[videoId] ? (video.likes + 1) : Math.max(0, video.likes - 1);
             
             const videoInAll = allVideos.find(v => v.id == videoId);
             if (videoInAll) {
@@ -854,9 +574,7 @@
         }
 
         function shareVideo(index, videoId) {
-            const video = loadedVideos[index];
-            if (!video) return;
-            
+            const video = displayedVideos[index];
             const shareText = video.hashtags 
                 ? `${video.title}\n\n${video.hashtags}`
                 : video.title;
@@ -874,17 +592,9 @@
             }
         }
 
-        // Smart auto-refresh: only reload if video count changed
-        let lastVideoCount = 0;
+        // Auto-refresh to sync with admin changes
         setInterval(() => {
-            const savedVideos = localStorage.getItem('demoVideos');
-            const currentVideos = savedVideos ? JSON.parse(savedVideos) : [];
-            
-            if (currentVideos.length !== lastVideoCount) {
-                console.log('Video count changed, reloading...');
-                lastVideoCount = currentVideos.length;
-                loadVideos();
-            }
+            loadVideos();
         }, 3000);
 
         loadVideos();
