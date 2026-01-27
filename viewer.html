@@ -106,6 +106,21 @@
             background: rgba(255,255,255,0.25);
         }
 
+        .search-info {
+            position: fixed;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 101;
+            backdrop-filter: blur(10px);
+        }
+
         .container {
             height: 100vh;
             width: 100vw;
@@ -138,6 +153,7 @@
             height: 100%;
             object-fit: cover;
             background: #000;
+            cursor: pointer;
         }
 
         .controls {
@@ -225,6 +241,16 @@
             transform: scale(1.1);
         }
 
+        .action-icon.liked {
+            animation: heartBeat 0.4s ease;
+        }
+
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
         .action-text {
             font-size: 13px;
             font-weight: 700;
@@ -248,33 +274,96 @@
             line-height: 1.6;
         }
 
-        .liked {
-            animation: likeAnimation 0.4s ease;
+        .hidden {
+            display: none !important;
         }
 
-        @keyframes likeAnimation {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.3); }
+        .play-pause-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
 
-        .search-info {
+        .play-pause-overlay.show {
+            opacity: 1;
+            animation: fadeOut 0.5s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        .toast {
             position: fixed;
-            top: 120px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(96,165,250,0.95);
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 10px 24px;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            animation: fadeInOut 2.5s ease;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        .admin-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 12px 20px;
             border-radius: 24px;
             font-size: 13px;
             font-weight: 700;
-            z-index: 100;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 4px 12px rgba(96,165,250,0.3);
+            text-decoration: none;
+            z-index: 101;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
         }
 
-        .hidden {
-            display: none;
+        .admin-link:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateY(-2px);
+        }
+
+        .mute-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 101;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mute-indicator:hover {
+            background: rgba(0,0,0,0.9);
         }
 
         @media (max-width: 768px) {
@@ -285,79 +374,151 @@
             .demo-watermark {
                 font-size: 10px;
                 padding: 6px 14px;
-                top: 10px;
             }
-            
+
             .search-bar {
-                top: 45px;
-                gap: 8px;
+                top: 55px;
             }
-            
+
             .search-input {
-                width: 160px;
-                font-size: 12px;
-                padding: 10px 16px;
+                width: 140px;
+                padding: 10px 14px;
+                font-size: 13px;
             }
-            
+
             .search-btn, .clear-btn {
-                font-size: 11px;
-                padding: 10px 16px;
+                padding: 10px 14px;
+                font-size: 12px;
             }
 
             .search-info {
                 top: 100px;
-                font-size: 11px;
-                padding: 8px 16px;
-                max-width: 90%;
             }
         }
     </style>
 </head>
 <body>
-    <div class="demo-watermark">📱 VIEWER MODE - DEMO</div>
+    <div class="demo-watermark">📺 VIEWER MODE - DEMO</div>
     
     <div class="search-bar">
-        <input 
-            type="text" 
-            id="searchInput" 
-            class="search-input" 
-            placeholder="Search hashtags..."
-            onkeypress="handleSearchKeyPress(event)"
-        >
+        <input type="text" class="search-input" id="searchInput" placeholder="Search #hashtag" onkeypress="handleSearchKeyPress(event)">
         <button class="search-btn" onclick="searchHashtag()">🔍 Search</button>
-        <button class="clear-btn" onclick="clearSearch()">✕ Clear</button>
+        <button class="clear-btn" onclick="clearSearch()">Clear</button>
     </div>
 
     <div id="searchInfo" class="search-info hidden"></div>
 
+    <a href="admin.html" class="admin-link">👑 Admin</a>
+    
+    <div class="mute-indicator" id="muteIndicator" onclick="toggleGlobalMute()">🔇 Tap for sound</div>
+
     <div class="container" id="videoContainer">
         <div class="video-section">
             <div class="empty-state">
-                <h2>🎬 No Videos Yet</h2>
-                <p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>
+                <h2>🎬 Loading...</h2>
+                <p>Checking for videos...</p>
             </div>
         </div>
     </div>
 
     <script>
+        // Database using IndexedDB for loading video blobs
+        let db;
         let allVideos = [];
         let displayedVideos = [];
-        let currentSearchTerm = '';
+        let userLikes = {};
         let viewTracking = {};
         let watchTimeTracking = {};
-        let userLikes = {};
+        let currentSearchTerm = '';
+        let videoBlobs = {}; // Cache for video URLs
+        let globalMuted = true;
 
-        function loadVideos() {
-            const savedVideos = localStorage.getItem('demoVideos');
-            const savedLikes = localStorage.getItem('demoLikes');
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('VideoPlatformDB', 1);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains('videos')) {
+                        db.createObjectStore('videos', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        // Get video blob from IndexedDB
+        function getVideoBlob(id) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    resolve(null);
+                    return;
+                }
+                const transaction = db.transaction(['videos'], 'readonly');
+                const store = transaction.objectStore('videos');
+                const request = store.get(id);
+                
+                request.onsuccess = () => resolve(request.result?.blob);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function showToast(message) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
             
-            allVideos = savedVideos ? JSON.parse(savedVideos) : [];
-            userLikes = savedLikes ? JSON.parse(savedLikes) : {};
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
             
-            if (currentSearchTerm) {
-                filterByHashtag(currentSearchTerm);
-            } else {
-                displayedVideos = allVideos;
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        async function loadVideos() {
+            try {
+                // Initialize IndexedDB
+                try {
+                    await initDB();
+                } catch (e) {
+                    console.log('IndexedDB not available');
+                }
+
+                const savedVideos = localStorage.getItem('demoVideos');
+                const savedLikes = localStorage.getItem('demoLikes');
+                
+                allVideos = savedVideos ? JSON.parse(savedVideos) : [];
+                userLikes = savedLikes ? JSON.parse(savedLikes) : {};
+                
+                // Load video blobs from IndexedDB
+                for (const video of allVideos) {
+                    if (!videoBlobs[video.id] && video.blobId) {
+                        try {
+                            const blob = await getVideoBlob(video.blobId);
+                            if (blob) {
+                                videoBlobs[video.id] = URL.createObjectURL(blob);
+                            }
+                        } catch (e) {
+                            console.log('Could not load video blob:', video.id);
+                        }
+                    }
+                }
+                
+                if (currentSearchTerm) {
+                    filterByHashtag(currentSearchTerm);
+                } else {
+                    displayedVideos = allVideos;
+                    renderVideos();
+                }
+            } catch (e) {
+                console.error('Error loading videos:', e);
+                displayedVideos = [];
                 renderVideos();
             }
         }
@@ -466,13 +627,42 @@
             localStorage.setItem('demoAnalytics', JSON.stringify(analytics));
         }
 
+        function toggleGlobalMute() {
+            globalMuted = !globalMuted;
+            const indicator = document.getElementById('muteIndicator');
+            indicator.textContent = globalMuted ? '🔇 Tap for sound' : '🔊 Sound on';
+            
+            // Update all videos
+            document.querySelectorAll('video').forEach(video => {
+                video.muted = globalMuted;
+            });
+            
+            showToast(globalMuted ? '🔇 Sound off' : '🔊 Sound on');
+        }
+
+        function toggleVideoPlayback(videoElement, overlayId) {
+            const overlay = document.getElementById(overlayId);
+            
+            if (videoElement.paused) {
+                videoElement.play();
+                overlay.textContent = '▶️';
+            } else {
+                videoElement.pause();
+                overlay.textContent = '⏸️';
+            }
+            
+            overlay.classList.remove('show');
+            void overlay.offsetWidth; // Trigger reflow
+            overlay.classList.add('show');
+        }
+
         function renderVideos() {
             const container = document.getElementById('videoContainer');
             
             if (displayedVideos.length === 0) {
                 const message = currentSearchTerm 
                     ? `<h2>🔍 No Results</h2><p>No videos match "${currentSearchTerm}"</p><p style="margin-top: 12px; opacity: 0.7;">Try a different hashtag or clear the search</p>`
-                    : `<h2>🎬 No Videos Yet</h2><p>Videos will appear here once uploaded by the admin. Try the admin version to add content!</p>`;
+                    : `<h2>🎬 No Videos Yet</h2><p>Videos will appear here once uploaded by the admin.</p><p style="margin-top: 12px;"><a href="admin.html" style="color: #fbbf24; text-decoration: none; font-weight: 700;">👑 Go to Admin Panel</a></p>`;
                 
                 container.innerHTML = `
                     <div class="video-section">
@@ -492,19 +682,25 @@
                         .join('')
                     : '';
 
+                // Use cached blob URL or fallback to stored URL
+                const videoUrl = videoBlobs[video.id] || video.url || '';
+
                 return `
                     <div class="video-section" data-video-id="${video.id}">
                         <video 
                             id="video-${index}" 
-                            src="${video.url}" 
+                            src="${videoUrl}" 
                             loop 
                             playsinline
                             muted
+                            onclick="toggleVideoPlayback(this, 'overlay-${index}')"
                         ></video>
+                        
+                        <div class="play-pause-overlay" id="overlay-${index}">▶️</div>
                         
                         <div class="controls">
                             <div class="video-title">${video.title}</div>
-                            <div class="video-description">${video.description}</div>
+                            <div class="video-description">${video.description || ''}</div>
                             ${hashtags ? `<div class="video-hashtags">${hashtags}</div>` : ''}
                         </div>
 
@@ -536,7 +732,8 @@
                     
                     if (video && videoId) {
                         if (entry.isIntersecting) {
-                            video.play();
+                            video.muted = globalMuted;
+                            video.play().catch(() => {});
                             trackView(videoId);
                             startWatchTimeTracking(videoId);
                         } else {
@@ -560,7 +757,8 @@
             
             video.likes = userLikes[videoId] ? (video.likes + 1) : Math.max(0, video.likes - 1);
             
-            const videoInAll = allVideos.find(v => v.id == videoId);
+            // Update in allVideos array too
+            const videoInAll = allVideos.find(v => v.id === videoId);
             if (videoInAll) {
                 videoInAll.likes = video.likes;
                 localStorage.setItem('demoVideos', JSON.stringify(allVideos));
@@ -571,6 +769,8 @@
             setTimeout(() => likeIcon.classList.remove('liked'), 400);
             
             likeCount.textContent = video.likes;
+            
+            showToast(userLikes[videoId] ? '❤️ Liked!' : '💔 Unliked');
         }
 
         function shareVideo(index, videoId) {
@@ -586,10 +786,23 @@
                     title: video.title,
                     text: shareText,
                     url: window.location.href
-                }).catch(err => console.log('Error sharing:', err));
+                }).catch(err => {
+                    if (err.name !== 'AbortError') {
+                        copyToClipboard(video.title);
+                    }
+                });
             } else {
-                alert(`Link copied! Share: ${video.title}\n\nURL: ${window.location.href}`);
+                copyToClipboard(video.title);
             }
+        }
+
+        function copyToClipboard(title) {
+            const text = `Check out: ${title}\n${window.location.href}`;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('📋 Link copied to clipboard!');
+            }).catch(() => {
+                showToast('📤 Share: ' + title);
+            });
         }
 
         // Auto-refresh to sync with admin changes
@@ -597,6 +810,7 @@
             loadVideos();
         }, 3000);
 
+        // Initial load
         loadVideos();
     </script>
 </body>
